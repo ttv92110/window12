@@ -1,8 +1,7 @@
 from api.repositories.file_repo import file_repo
 from api.routers.websocket import broadcast_file_change
-from typing import List, Dict, Optional
-
 from api.utils.mime_detector import get_mime_from_extension
+from typing import List, Dict, Optional
 
 class FileService:
     async def get_all_files(self, user_id: str) -> List[Dict]:
@@ -10,12 +9,14 @@ class FileService:
 
     async def get_file(self, user_id: str, file_id: str) -> Optional[Dict]:
         return file_repo.get_by_id(user_id, file_id)
- 
+
     async def create_file(self, user_id: str, file_data: Dict) -> Dict:
         name = file_data.get("name", "untitled")
         file_data["extension"] = name[name.rfind("."):].lower() if "." in name else ""
         file_data["mime_type"] = file_data.get("mime_type") or get_mime_from_extension(name)
-        return await super().create_file(user_id, file_data)  # uses the repo's create
+        created = file_repo.create(user_id, file_data)
+        await broadcast_file_change(user_id, "created", created)
+        return created
 
     async def update_file(self, user_id: str, file_id: str, updates: Dict) -> Optional[Dict]:
         updated = file_repo.update(user_id, file_id, updates)
@@ -39,7 +40,9 @@ class FileService:
             "name": original["name"] + " - Copy",
             "type": original["type"],
             "parent_id": original.get("parent_id", "root"),
-            "content": original.get("content", "")
+            "content": original.get("content", ""),
+            "extension": original.get("extension", ""),
+            "mime_type": original.get("mime_type", ""),
         }
         created = file_repo.create(user_id, new_file)
         await broadcast_file_change(user_id, "created", created)

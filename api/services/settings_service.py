@@ -13,9 +13,8 @@ class SettingsService:
             record = settings_list[0]
             settings_repo.update(user_id, record["id"], updates)
         else:
-            # Create new settings record if none exists
             settings_repo.create(user_id, updates)
         await broadcast_settings_change(user_id)
-        return self.get_settings(user_id)
+        return await self.get_settings(user_id)  # <-- add await here
 
 settings_service = SettingsService()
