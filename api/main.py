@@ -3,30 +3,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-
 import os
+
+# Import routers
 from .routers import auth, files, notes, settings, notifications, apps, websocket, search, store, music, calendar, mail, assistant
+
+# ========== Single FastAPI app ==========
 app = FastAPI(title="Windows12 OS Backend")
 
-
-limiter = Limiter(key_func=get_remote_address)
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-# ---------- CORS ----------
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-) 
-
+# ========== CORS ==========
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "*")
 if allowed_origins == "*":
-    # development
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -35,7 +22,6 @@ if allowed_origins == "*":
         allow_headers=["*"],
     )
 else:
-    # production: comma-separated origins
     origins = [o.strip() for o in allowed_origins.split(",")]
     app.add_middleware(
         CORSMiddleware,
@@ -44,7 +30,8 @@ else:
         allow_methods=["GET", "POST", "PUT", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
     )
-# ---------- Routers ----------
+
+# ========== Routers ==========
 app.include_router(auth.router)
 app.include_router(files.router)
 app.include_router(notes.router)
@@ -58,43 +45,41 @@ app.include_router(music.router)
 app.include_router(calendar.router)
 app.include_router(mail.router)
 app.include_router(assistant.router)
-# ---------- Static files ----------
+
+# ========== Static files & Vercel data directories ==========
 BASE_DIR = Path(__file__).parent.parent.absolute()
-# For Vercel serverless function
-app = FastAPI(title="Window 12")  
- 
+
+# For Vercel, copy data files to /tmp so they are writable/readable
 DATA_DIR = Path("/tmp/data") if os.getenv("VERCEL") else BASE_DIR / "data"
 DATA_DIR.mkdir(exist_ok=True, parents=True)
- 
 if os.getenv("VERCEL"):
     import shutil
     source_data = BASE_DIR / "data"
-
     if source_data.exists():
         for file in source_data.glob("*.json"):
             target = DATA_DIR / file.name
             if not target.exists():
                 shutil.copy2(file, target)
- 
-DATA_DIR = Path("/tmp/api/data") if os.getenv("VERCEL") else BASE_DIR / "api/data"
-DATA_DIR.mkdir(exist_ok=True, parents=True)
- 
+
+# Also handle api/data (for app_manifest.json etc.)
+API_DATA_DIR = Path("/tmp/api/data") if os.getenv("VERCEL") else BASE_DIR / "api/data"
+API_DATA_DIR.mkdir(exist_ok=True, parents=True)
 if os.getenv("VERCEL"):
-    import shutil
-    source_data = BASE_DIR / "api/data"
-
-    if source_data.exists():
-        for file in source_data.glob("*.json"):
-            target = DATA_DIR / file.name
+    source_api_data = BASE_DIR / "api/data"
+    if source_api_data.exists():
+        for file in source_api_data.glob("*.json"):
+            target = API_DATA_DIR / file.name
             if not target.exists():
                 shutil.copy2(file, target)
-                
+
 os.environ["DATA_DIR"] = str(DATA_DIR)
+
+# Mount static files
 static_dir = BASE_DIR / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-# ---------- Serve frontend as static HTML (no Jinja2) ----------
+# ========== Serve frontend ==========
 TEMPLATES_DIR = BASE_DIR / "templates"
 DESKTOP_HTML = TEMPLATES_DIR / "desktop.html"
 
@@ -108,7 +93,6 @@ async def root():
 async def health():
     from api.repositories.user_repo import user_repo
     try:
-        # This triggers the lazy connection
         user_repo.get_all_users()
         return {"db": "connected"}
     except Exception as e:

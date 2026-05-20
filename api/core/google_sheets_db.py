@@ -10,20 +10,19 @@ import time
 import traceback
 
 class GoogleSheetsDB:
-    def __init__(self, sheet_name: str, worksheet_name: str):
+    def __init__(self, sheet_name: str, worksheet_name: str, connect_eagerly=False):
         self.sheet_name = sheet_name
         self.worksheet_name = worksheet_name
         self._client = None
         self._worksheet = None
         self._cache = {}
         self._cache_expiry = 5
-        # DO NOT connect here — fully lazy
+        if connect_eagerly:
+            self._ensure_connected()   # <-- yahi se startup logs aayenge
 
     def _ensure_connected(self):
-        """Connect once. If quota exceeded, retry with backoff."""
         if self._worksheet is not None:
             return
-
         attempts = 0
         max_attempts = 3
         while attempts < max_attempts:
@@ -64,13 +63,12 @@ class GoogleSheetsDB:
                     if headers:
                         self._worksheet.append_row(headers)
                         print(f"📋 Added headers to '{self.worksheet_name}'")
-                return  # success
-
+                return
             except Exception as e:
                 err_str = str(e)
                 if "429" in err_str:
-                    wait = 2 ** attempts  # exponential backoff: 2, 4, 8 seconds
-                    print(f"⏳ Quota hit — retrying in {wait}s...")
+                    wait = 2 ** attempts
+                    print(f"⏳ Quota hit – retrying in {wait}s...")
                     time.sleep(wait)
                 else:
                     print(f"❌ Connection error: {traceback.format_exc()}")
@@ -92,7 +90,7 @@ class GoogleSheetsDB:
         }
         return headers_map.get(self.worksheet_name)
 
-    # ---------- CRUD ----------
+    # ---------- CRUD (pehle _ensure_connected) ----------
     def read_all(self, force_refresh=False):
         self._ensure_connected()
         if not self._worksheet:
@@ -114,16 +112,16 @@ class GoogleSheetsDB:
                 return self._cache[cache_key][0]
             return []
 
-    def find_by_id(self, id: str) -> Optional[Dict]:
+    def find_by_id(self, id: str):
         for rec in self.read_all():
             if rec.get("id") == id:
                 return rec
         return None
 
-    def find_by_field(self, field: str, value: str) -> List[Dict]:
+    def find_by_field(self, field: str, value: str):
         return [r for r in self.read_all() if str(r.get(field)) == str(value)]
 
-    def insert(self, record: Dict) -> Dict:
+    def insert(self, record: Dict):
         self._ensure_connected()
         if not self._worksheet:
             return record
@@ -140,7 +138,7 @@ class GoogleSheetsDB:
         self._cache.clear()
         return record
 
-    def update(self, id: str, updates: Dict) -> Optional[Dict]:
+    def update(self, id: str, updates: Dict):
         self._ensure_connected()
         if not self._worksheet:
             return None
@@ -156,7 +154,7 @@ class GoogleSheetsDB:
                 return rec
         return None
 
-    def delete(self, id: str) -> bool:
+    def delete(self, id: str):
         self._ensure_connected()
         if not self._worksheet:
             return False
@@ -171,8 +169,9 @@ class GoogleSheetsDB:
 
 class GoogleSheetsDBManager:
     def __init__(self, spreadsheet_name: str = "Windows12OS"):
-        # Create instances but DO NOT connect
-        self.users_db = GoogleSheetsDB(spreadsheet_name, "users")
+        # Eagerly connect only the most critical sheet (users) so you see logs immediately
+        self.users_db = GoogleSheetsDB(spreadsheet_name, "users", connect_eagerly=True)
+        # All others are lazy
         self.files_db = GoogleSheetsDB(spreadsheet_name, "files")
         self.notes_db = GoogleSheetsDB(spreadsheet_name, "notes")
         self.settings_db = GoogleSheetsDB(spreadsheet_name, "settings")
