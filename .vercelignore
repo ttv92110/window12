@@ -12,4 +12,7 @@ env
 api/credentials.json
 api/core/credentials.json
 credentials.json
+api/credentials_old.json
+api/core/credentials_old.json
+credentials_old.json
 *.json
