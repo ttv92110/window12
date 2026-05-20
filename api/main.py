@@ -76,6 +76,19 @@ if os.getenv("VERCEL"):
             if not target.exists():
                 shutil.copy2(file, target)
  
+DATA_DIR = Path("/tmp/api/data") if os.getenv("VERCEL") else BASE_DIR / "api/data"
+DATA_DIR.mkdir(exist_ok=True, parents=True)
+ 
+if os.getenv("VERCEL"):
+    import shutil
+    source_data = BASE_DIR / "api/data"
+
+    if source_data.exists():
+        for file in source_data.glob("*.json"):
+            target = DATA_DIR / file.name
+            if not target.exists():
+                shutil.copy2(file, target)
+                
 os.environ["DATA_DIR"] = str(DATA_DIR)
 static_dir = BASE_DIR / "static"
 if static_dir.exists():
