@@ -61,8 +61,7 @@ app.include_router(assistant.router)
 # ---------- Static files ----------
 BASE_DIR = Path(__file__).parent.parent.absolute()
 # For Vercel serverless function
-app = FastAPI(title="Window 12") 
-BASE_DIR = Path(__file__).parent.parent.absolute()
+app = FastAPI(title="Window 12")  
  
 DATA_DIR = Path("/tmp/data") if os.getenv("VERCEL") else BASE_DIR / "data"
 DATA_DIR.mkdir(exist_ok=True, parents=True)
