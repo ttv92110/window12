@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head> 
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y7LDCTR5GX"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-Y7LDCTR5GX');
+  </script>
+  <meta charset="UTF-8" />
+
+   <title>Windows 12 - Desktop</title>
+  <meta name="theme-color" content="#000" />
+  <meta name="author" content="Arshad Ali" /> 
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />   
+  <meta property="og:title" content="Arshad Ali | Windows 12" />
+  <meta property="og:site_name" content="Arshad Ali Windows 12" />
+  <meta name="twitter:title" content="Arshad Ali | Windows 12" />
+
+  <meta name="description" content="Arshad Ali | Windows 12, Visit and know about me & my projects/designs. Visit my Windows 12 for a glimpse into my world of creativity, featuring streamlined content and captivating designs.Arshad Ali, Arshad Ali Windows 12, Arshad Ali, Arshad Ali Windows 12, Arshad Ali CV, 03401710232, +923401710232,Arshad Ali 03401710232,Arshad Ali +923401710232, Arshad Ali web, arsk92110@gmail.com, Arshad Ali arsk92110@gmail.com, Arshad Ali Linkdin, Arshad Ali Github, codewith Arshad Ali-py github, Code WithArshad Ali GitHub, Arshad Ali python Django, python developer, Arshad Ali data analyst, Arshad Ali developer, Arshad Ali Windows 12 Vercel, Arshad Ali Vercel Windows 12" />
+  <meta name="keywords" content="Arshad Ali, Arshad Ali Windows 12, Arshad Ali, Arshad Ali Windows 12, Arshad Ali CV, 03401710232, +923401710232,Arshad Ali 03401710232,Arshad Ali +923401710232, Arshad Ali web, arsk92110@gmail.com, Arshad Ali arsk92110@gmail.com, Arshad Ali Linkdin, Arshad Ali Github, codewith Arshad Ali-py github, Code WithArshad Ali GitHub, Arshad Ali python Django, python developer, Arshad Ali data analyst, Arshad Ali developer, Arshad Ali Windows 12 Vercel, Arshad Ali Vercel Windows 12" />
+  <meta property="og:description" content="Visit and know about me & my projects/designs. Innovative approach merging Django, Python, RESTApi, with simple content, clean design, and thoughtful interactions. Arshad Ali, Arshad Ali Windows 12 , Arshad Ali, Arshad Ali Windows 12, Arshad Ali CV, 03401710232, +923401710232,Arshad Ali 03401710232,Arshad Ali +923401710232, Arshad Ali web, arsk92110@gmail.com, Arshad Ali arsk92110@gmail.com, Arshad Ali Linkdin, Arshad Ali Github, codewith Arshad Ali-py github, Code WithArshad Ali GitHub, Arshad Ali python Django, python developer, Arshad Ali data analyst, Arshad Ali developer, Arshad Ali Windows 12 Vercel, Arshad Ali Vercel Windows 12" />
+  
+  <link rel="icon" type="image/x-icon" href="/static/images/window_logo.png" />
+
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+    <!-- BOOT SCREEN -->
+    <div id="boot-screen">
+        <img src="/static/images/window_logo.png" alt="Windows Logo">
+        <div class="boot-spinner"></div>
+        <div class="boot-text">Starting Windows 12...</div>
+    </div>
+
+    <!-- LOCK SCREEN -->
+    <div id="lock-screen" class="hidden">
+        <div class="lock-avatar">👤</div> 
+        <div class="lock-time" id="lock-time">12:00</div>
+        <div class="lock-date" id="lock-date">Monday, January 1</div>
+        <div class="lock-hint">Click to login</div>
+    </div>
+
+    <!-- DESKTOP -->
+    <div id="desktop">
+        <div id="desktop-icons">
+            <div class="desktop-icon" data-app="recycle" ondblclick="openApp('recycle')">
+                <div class="icon-img icon-recycle">🗑️</div>
+                <div class="icon-label">Recycle Bin</div>
+            </div>
+            <div class="desktop-icon" data-app="explorer" ondblclick="openApp('explorer')">
+                <div class="icon-img">📁</div>
+                <div class="icon-label">File Explorer</div>
+            </div>
+            <div class="desktop-icon" data-app="browser" ondblclick="openApp('browser')">
+                <div class="icon-img">🌐</div>
+                <div class="icon-label">Edge Browser</div>
+            </div>
+            <div class="desktop-icon" data-app="settings" ondblclick="openApp('settings')">
+                <div class="icon-img">⚙️</div>
+                <div class="icon-label">Settings</div>
+            </div>
+            <div class="desktop-icon" data-app="notepad" ondblclick="openApp('notepad')">
+                <div class="icon-img">📝</div>
+                <div class="icon-label">Notepad</div>
+            </div>
+             
+        </div>
+    </div>
+     
+
+    <!-- TASKBAR -->
+    <div id="taskbar">
+        <div class="taskbar-left" id="pinned-apps"></div>
+        <div class="taskbar-left">
+            <button class="taskbar-btn" id="btn-start" title="Start">⊞</button>
+            <button class="taskbar-btn" id="btn-search" title="Search">🔍</button>
+            <button class="taskbar-btn" id="btn-widgets" title="Widgets">📋</button>
+        </div>
+        <div class="taskbar-center" id="taskbar-apps"></div>
+        <div class="taskbar-right">
+            <div class="tray-icon" id="btn-notifications" title="Notifications">🔔<span class="tray-dot"></span></div>
+            <div class="tray-icon" title="Network">📶</div>
+            <div class="tray-icon" title="Volume">🔊</div>
+            <div id="taskbar-clock">
+                <div class="clock-time" id="clock-time">12:00</div>
+                <div class="clock-date" id="clock-date">1/1/2026</div>
+            </div>
+        </div>
+        <button class="taskbar-btn" id="btn-taskview" title="Task View">⊞⊞</button>
+    </div>
+
+    <!-- START MENU -->
+    <div id="start-menu">
+        <input type="text" class="start-search" placeholder="🔍  Type to search..." id="start-search-input">
+        <div class="start-apps" id="start-apps-grid"></div>
+        <div class="start-footer">
+            <div class="start-footer-avatar">👤</div>
+            <span id="user-display">User Account</span>
+            <span id="power-btn" style="margin-left:auto; cursor:pointer;">⏻ Power</span>
+        </div>
+    </div>
+
+    <!-- WIDGETS PANEL -->
+    <div id="widgets-panel">
+        <button class="widget-close" id="btn-widgets-close">✕</button>
+        <h3>📋 Widgets</h3>
+    <div class="widget-card widget-weather">
+        <span class="weather-icon">☀️</span>
+        <div>
+            <div style="font-size:28px;font-weight:600;" class="weather-temp">72°F</div>
+            <div style="font-size:12px;color:#94a3b8;" class="weather-desc">Sunny · New York</div>
+        </div>
+    </div>
+    <div class="widget-card widget-stocks">
+        <strong>📈 Stocks</strong>
+        <p style="margin-top:6px;" class="stock-val">▲ S&P 500 +1.2%</p>
+    </div>
+    <div class="widget-card widget-calendar">
+        <strong>📅 Calendar</strong>
+        <p style="margin-top:6px;" class="cal-text">Loading...</p>
+    </div>
+    <div class="widget-card">
+        <strong>🗞️ News</strong>
+        <p style="margin-top:6px;">Latest headlines loading...</p>
+    </div>
+    </div>
+
+    <!-- NOTIFICATION PANEL -->
+    <div id="notification-panel">
+        <button class="widget-close" id="btn-notif-close">✕</button>
+        <h3>🔔 Notifications</h3>
+        <div id="notif-list"></div>
+    </div>
+
+    <!-- OVERLAY -->
+    <div id="overlay"></div>
+  
+    <!-- CONTEXT MENU -->
+    <div id="context-menu">
+        <div class="context-item"  data-action="new-folder" onclick="openApp('explorer');hideContextMenu();">📁 New Folder</div>
+        <div class="context-item"  data-action="new-file" onclick="hideContextMenu();">📄 New Text Document</div>
+        <div class="context-divider"></div>
+        <div class="context-item" onclick="hideContextMenu();">🖥️ Display Settings</div>
+        <div class="context-item" onclick="hideContextMenu();">🎨 Personalize</div>
+        <div class="context-divider"></div>
+        <div class="context-item" onclick="openApp('settings');hideContextMenu();">⚙️ Settings</div>
+        <div class="context-item" onclick="hideContextMenu();">🔄 Refresh</div>
+    </div>
+
+    <!-- WINDOWS CONTAINER -->
+    <div id="windows-container"></div>
+
+
+        <!-- LOGIN BOX --> 
+    <div id="login-box" style="display:none;">
+        <!-- Login form -->
+        <div id="login-form">
+            <div class="login-avatar">👤</div>
+            <h3 id="login-heading">Welcome</h3>
+            <input type="text" id="login-username" placeholder="Username" autocomplete="off">
+            <div class="password-field">
+                <input type="password" id="login-password" placeholder="Password">
+                <button type="button" class="toggle-password" tabindex="-1">👁️</button>
+            </div>
+            <button id="login-btn" class="login-arrow-btn">→</button>
+        </div>
+
+        <!-- Signup form (hidden) -->
+        <div id="signup-form" style="display:none;">
+            <div class="login-avatar">👤</div>
+            <h3>Create Account</h3>
+            <input type="email" id="signup-email" placeholder="Email">
+            <input type="text" id="signup-username" placeholder="Username">
+            <input type="text" id="signup-fullname" placeholder="Full Name">
+            <div class="password-field">
+                <input type="password" id="signup-password" placeholder="Password">
+                <button type="button" class="toggle-password" tabindex="-1">👁️</button>
+            </div>
+            <button id="signup-btn" class="login-arrow-btn">→</button>
+        </div>
+    </div>
+
+    <!-- Plus icon – screen ke bottom‑right mein -->
+    <button id="show-signup-icon" class="plus-signup-btn" title="Create account">+</button>
+    <button id="show-login-icon" class="plus-signup-btn" style="display:none;" title="Back to login">←</button>
+        
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/settings-sync.js"></script>
+    <script src="/static/js/filesystem.js"></script>
+    <script src="/static/js/file_associations.js"></script>
+    <script src="/static/js/file_opener.js"></script>
+    <script src="/static/js/video_player.js"></script>
+    <script src="/static/js/code_editor.js"></script>
+    <script src="/static/js/pdf_viewer.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/globals.js"></script>
+    <script src="/static/js/window-manager.js"></script>
+    <script src="/static/js/workspaces.js"></script>
+    <script src="/static/js/start-menu.js"></script>
+    <script src="/static/js/context-menu.js"></script>
+    <script src="/static/js/file-explorer.js"></script>
+    <script src="/static/js/notes-app.js"></script>
+    <script src="/static/js/settings-app.js"></script>
+    <script src="/static/js/auth-ui.js"></script> 
+    <script src="/static/js/desktop.js"></script>
+    <script src="/static/js/desktop-icons.js"></script>
+    <script src="/static/js/taskbar-pins.js"></script>
+    <script src="/static/js/widgets.js"></script>
+    <script src="/static/js/system-tray.js"></script>
+    <script src="/static/js/power-menu.js"></script>
+    
+    <!-- app files -->
+    <script src="/static/js/calculator-app.js"></script>
+    <script src="/static/js/browser.js"></script>
+    <script src="/static/js/terminal.js"></script>
+    <script src="/static/js/store.js"></script>
+    <script src="/static/js/music.js"></script>
+    <script src="/static/js/gallery.js"></script>
+    <script src="/static/js/calendar.js"></script>
+    <script src="/static/js/mail.js"></script>
+    <script src="/static/js/paint.js"></script>
+    <script src="/static/js/assistant.js"></script> 
+    
+</body>
+</html>

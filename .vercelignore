@@ -1,0 +1,15 @@
+__pycache__
+*.pyc
+node_modules
+.git
+.gitignore 
+.env
+.venv
+venv
+ENV
+env
+
+api/credentials.json
+api/core/credentials.json
+credentials.json
+*.json
