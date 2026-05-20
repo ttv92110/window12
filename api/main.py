@@ -60,7 +60,24 @@ app.include_router(mail.router)
 app.include_router(assistant.router)
 # ---------- Static files ----------
 BASE_DIR = Path(__file__).parent.parent.absolute()
+# For Vercel serverless function
+app = FastAPI(title="Window 12") 
+BASE_DIR = Path(__file__).parent.parent.absolute()
+ 
+DATA_DIR = Path("/tmp/data") if os.getenv("VERCEL") else BASE_DIR / "data"
+DATA_DIR.mkdir(exist_ok=True, parents=True)
+ 
+if os.getenv("VERCEL"):
+    import shutil
+    source_data = BASE_DIR / "data"
 
+    if source_data.exists():
+        for file in source_data.glob("*.json"):
+            target = DATA_DIR / file.name
+            if not target.exists():
+                shutil.copy2(file, target)
+ 
+os.environ["DATA_DIR"] = str(DATA_DIR)
 static_dir = BASE_DIR / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
