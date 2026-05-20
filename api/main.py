@@ -7,6 +7,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
+import os
 from .routers import auth, files, notes, settings, notifications, apps, websocket, search, store, music, calendar, mail, assistant
 app = FastAPI(title="Windows12 OS Backend")
 
@@ -21,8 +22,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
-import os
+) 
 
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "*")
 if allowed_origins == "*":
@@ -103,3 +103,13 @@ async def root():
     if DESKTOP_HTML.exists():
         return FileResponse(DESKTOP_HTML)
     return {"message": "desktop.html not found"}
+
+@app.get("/health")
+async def health():
+    from api.repositories.user_repo import user_repo
+    try:
+        # This triggers the lazy connection
+        user_repo.get_all_users()
+        return {"db": "connected"}
+    except Exception as e:
+        return {"db": "error", "detail": str(e)}
