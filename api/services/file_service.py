@@ -81,6 +81,19 @@ class FileService:
                 print(f"Error deleting {item['id']}: {e}")
         
         return deleted_count
+    
+    async def move_files(self, user_id: str, file_ids: List[str], target_parent_id: str):
+        for fid in file_ids:
+            self.file_repo.update(user_id, fid, {"parent_id": target_parent_id})
+        await broadcast_file_change(user_id, "moved", {"ids": file_ids, "target": target_parent_id})
+
+    async def copy_files(self, user_id: str, file_ids: List[str], target_parent_id: str):
+        new_ids = []
+        for fid in file_ids:
+            original = self.file_repo.get_by_id(user_id, fid)
+            new = self.file_repo.create(user_id, {**original, "id": None, "name": original["name"] + " - Copy", "parent_id": target_parent_id})
+            new_ids.append(new["id"])
+        return new_ids
      
 
 

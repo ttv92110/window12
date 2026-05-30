@@ -1082,6 +1082,105 @@
     .close-tab-btn:hover {
         color: #ef4444 !important;
     }
+
+/* Modal */
+.win-modal {
+    position: fixed;
+    top: 30%;
+    left: 35%;
+    width: 400px;
+    background: rgba(30,30,50,0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 12px;
+    box-shadow: 0 20px 35px rgba(0,0,0,0.5);
+    z-index: 10000;
+}
+.win-modal-content {
+    display: flex;
+    flex-direction: column;
+}
+.win-modal-titlebar {
+    padding: 12px;
+    background: rgba(0,0,0,0.4);
+    border-radius: 12px 12px 0 0;
+    cursor: move;
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+}
+.win-modal-body {
+    padding: 16px;
+}
+.win-modal-inputs {
+    padding: 8px 16px;
+}
+.win-modal-buttons {
+    padding: 12px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+.win-modal-buttons button {
+    padding: 6px 16px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+}
+.win-modal-buttons button.primary {
+    background: var(--accent, #60a5fa);
+    color: white;
+}
+
+/* Explorer toolbar */
+.explorer-toolbar {
+    display: flex;
+    gap: 6px;
+    padding: 8px;
+    background: rgba(0,0,0,0.2);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.explorer-toolbar .tool-btn {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    border-radius: 6px;
+    padding: 4px 10px;
+    color: white;
+    cursor: pointer;
+}
+.explorer-toolbar .address-bar {
+    flex: 1;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 20px;
+    padding: 4px 12px;
+    color: white;
+}
+
+/* Details view */
+.explorer-files.details-view {
+    display: table;
+    width: 100%;
+}
+.details-header {
+    display: table-row;
+    background: rgba(255,255,255,0.05);
+    font-weight: bold;
+}
+.details-header span {
+    display: table-cell;
+    padding: 8px;
+    cursor: pointer;
+}
+.explorer-files.details-view .explorer-file {
+    display: table-row;
+}
+.explorer-files.details-view .explorer-file > span {
+    display: table-cell;
+    padding: 6px 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
 /* ===========================
    LOGIN BOX OVERLAY
    =========================== */

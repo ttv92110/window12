@@ -94,6 +94,35 @@ document.addEventListener('DOMContentLoaded', () => {
     );
 });
 
+document.addEventListener('keydown', async (e) => {
+    if (Win12.isLocked) return;
+    if (e.target.closest('input, textarea')) return; // ignore if typing
+
+    const activeExplorer = document.querySelector('.window-content[data-app="explorer"] .explorer-files');
+    if (!activeExplorer) return;
+
+    const selected = activeExplorer.querySelector('.explorer-file.selected'); // aapko selection implement karna hoga
+    const fileId = selected?.dataset.id;
+
+    if (e.ctrlKey && e.key === 'x') { // Cut
+        if (fileId) window.clipboard?.cut([fileId]);
+        e.preventDefault();
+    } else if (e.ctrlKey && e.key === 'c') { // Copy
+        if (fileId) window.clipboard?.copy([fileId]);
+        e.preventDefault();
+    } else if (e.ctrlKey && e.key === 'v') { // Paste
+        const currentFolderId = getCurrentFolderId(activeExplorer);
+        await window.clipboard?.paste(currentFolderId);
+        e.preventDefault();
+    } else if (e.key === 'Delete') {
+        if (fileId) deleteFile(fileId);
+        e.preventDefault();
+    } else if (e.key === 'F2') {
+        if (fileId) renameFile(fileId);
+        e.preventDefault();
+    }
+});
+
 // --- WebSocket ---
 function connectWebSocket() {
     if (!authToken) return;

@@ -88,7 +88,23 @@ class VirtualFileSystem {
         this.pathCache.set(folderId, path);
         return path;
     }
+    // Inside VirtualFileSystem class, after getPath() method
 
+    getFileDetails(fileId) {
+        const node = this.findNodeById(fileId);
+        if (!node) return null;
+        return {
+            name: node.name,
+            type: node.type,
+            size: node.size || '0',
+            modified: node.updated_at || node.created_at,
+            extension: node.extension || '',
+            path: this.getPath(fileId).map(id => {
+                const n = this.findNodeById(id);
+                return n ? n.name : id;
+            }).join('\\')
+        };
+    } 
     // Refresh the tree from a new flat list
     refresh(files) {
         this.files = files;

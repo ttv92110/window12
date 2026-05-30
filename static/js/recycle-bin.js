@@ -170,6 +170,20 @@ class RecycleBinApp {
     }
 }
 
+async function deleteFile(fileId) {
+    const result = await modal.show({
+        title: 'Delete',
+        message: 'Move this item to Recycle Bin?',
+        buttons: [
+            { text: 'Yes', value: 'yes', primary: true },
+            { text: 'No', value: 'no' }
+        ]
+    });
+    if (result.button === 'yes') {
+        await api.delete(`/files/${fileId}`);
+        refreshCurrentExplorer(container);
+    }
+}
 // Style for recycle bin items
 if (!document.getElementById('recycle-bin-styles')) {
     const style = document.createElement('style');

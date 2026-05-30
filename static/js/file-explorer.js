@@ -89,6 +89,43 @@ function attachExplorerEvents(container, vfs, folderId) {
             }
         });
 
+        // Drag & Drop
+        let draggedItemId = null;
+        container.querySelectorAll('.explorer-file').forEach(el => {
+            el.setAttribute('draggable', 'true');
+            el.addEventListener('dragstart', (e) => {
+                draggedItemId = el.dataset.id;
+                e.dataTransfer.setData('text/plain', draggedItemId);
+                e.dataTransfer.effectAllowed = 'move';
+            });
+            el.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            });
+            el.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                const targetId = el.dataset.id;
+                const targetType = el.dataset.type;
+                if (targetType === 'folder' && draggedItemId && draggedItemId !== targetId) {
+                    // Move dragged file/folder into target folder
+                    await api.put(`/files/${draggedItemId}`, { parent_id: targetId });
+                    refreshCurrentExplorer(container);
+                }
+                draggedItemId = null;
+            });
+        });
+
+        // Make entire container a drop target for desktop area
+        const filesContainer = container.querySelector('.explorer-files');
+        filesContainer.addEventListener('dragover', (e) => e.preventDefault());
+        filesContainer.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            const sourceId = e.dataTransfer.getData('text/plain');
+            if (sourceId && folderId !== 'root') {
+                await api.put(`/files/${sourceId}`, { parent_id: folderId });
+                refreshCurrentExplorer(container);
+            }
+        });
         // Drop - move file
         filesGrid.addEventListener('drop', async (e) => {
             e.preventDefault();
@@ -273,13 +310,28 @@ async function showFileContextMenu(x, y, fileId, fileType, container, vfs) {
 
     // Delete
     addItem('Delete', async () => {
-        const result = await Win12.confirm('Delete Item?', `Are you sure you want to delete "${file.name}"? This will move it to Recycle Bin.`);
-        if (result === 'yes') {
-            await api.put(`/files/${fileId}`, { parent_id: 'recycle_bin' });
-            Win12.addHistory('delete', [file], { originalParentId: file.parent_id });
+        const result = await modal.show({
+            title: 'Delete',
+            message: `Move "${fileName}" to Recycle Bin?`,
+            buttons: [
+                { text: 'Yes', value: 'yes', primary: true },
+                { text: 'No', value: 'no' }
+            ]
+        });
+        if (result.button === 'yes') {
+            await api.delete(`/files/${fileId}`);   // backend will move to trash
             refreshCurrentExplorer(container);
         }
+        menu.remove();
     }, '🗑️');
+    // addItem('Delete', async () => {
+    //     const result = await Win12.confirm('Delete Item?', `Are you sure you want to delete "${file.name}"? This will move it to Recycle Bin.`);
+    //     if (result === 'yes') {
+    //         await api.put(`/files/${fileId}`, { parent_id: 'recycle_bin' });
+    //         Win12.addHistory('delete', [file], { originalParentId: file.parent_id });
+    //         refreshCurrentExplorer(container);
+    //     }
+    // }, '🗑️');
 
     // New Folder (if current is a folder)
     if (fileType === 'folder') {
