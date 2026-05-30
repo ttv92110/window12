@@ -5,6 +5,8 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 import os
 
+from api.routers import file_associations, trash
+
 from .routers import auth, files, notes, settings, notifications, apps, websocket, search, store, music, calendar, mail, assistant
 
 # ========== ONE FastAPI app ==========
@@ -44,6 +46,8 @@ app.include_router(music.router)
 app.include_router(calendar.router)
 app.include_router(mail.router)
 app.include_router(assistant.router)
+app.include_router(trash.router)
+app.include_router(file_associations.router)
 
 # ========== Static files & Vercel data directories ==========
 BASE_DIR = Path(__file__).parent.parent.absolute()

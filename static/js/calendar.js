@@ -132,7 +132,10 @@ class CalendarApp {
             const start = document.getElementById('ev-start').value;
             const end = document.getElementById('ev-end').value;
             const reminder = document.getElementById('ev-reminder').checked;
-            if (!title || !start || !end) return alert('Title, start and end are required.');
+            if (!title || !start || !end) {
+                await modal.alert('Title, start and end are required.', 'Validation Error');
+                return;
+            }
             await api.post('/calendar/', { title, description, start_datetime: start, end_datetime: end, reminder });
             this.modal.style.display = 'none';
             await this.loadEvents();
@@ -173,10 +176,8 @@ class CalendarApp {
             await this.loadEvents();
         });
         document.getElementById('delete-ev-btn').addEventListener('click', async () => {
-            if (confirm('Delete this event?')) {
+            if (await modal.confirm('Delete this event?', 'Confirm Delete')) {
                 await api.delete(`/calendar/${event.id}`);
-                this.modal.style.display = 'none';
-                await this.loadEvents();
             }
         });
     }

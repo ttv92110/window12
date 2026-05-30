@@ -237,7 +237,7 @@ class PaintApp {
 
     // ----- Save / Open -----
     async saveDrawing() {
-        const name = prompt('Save as (e.g., drawing.png):');
+        const name = await modal.prompt('Save as (e.g., drawing.png):', 'drawing.png', 'Save Drawing');
         if (!name) return;
         const dataURL = this.canvas.toDataURL('image/png');
         try {
@@ -249,7 +249,7 @@ class PaintApp {
             });
             alert('Drawing saved!');
         } catch (e) {
-            alert('Error saving: ' + e.message);
+            await modal.alert('Error saving: ' + e.message, 'Save Failed');
         }
     }
 

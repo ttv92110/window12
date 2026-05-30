@@ -93,6 +93,9 @@ class GoogleSheetsDB:
             "events": ["id","user_id","title","description","start_datetime","end_datetime","reminder","created_at"],
             "emails": ["id","user_id","sender","recipient","subject","body","read","folder","created_at"],
             "conversations": ["id","user_id","role","content","created_at"],
+            "trash": ["id", "user_id", "original_parent_id", "original_name", "original_type", "content", "extension", "mime_type",	"size"	"deleted_at","restorable"],
+            "file_associations": ["id", "user_id", "extension", "app_name"],
+            "action_log": ["id", "user_id", "action_type", "target_id", "target_type", "old_parent_id", "new_parent_id", "old_name", "new_name", "old_content", "new_content", "timestamp", "undone"],
         }
         return headers_map.get(self.worksheet_name)
 
@@ -290,5 +293,8 @@ class GoogleSheetsDBManager:
         self.events_db = GoogleSheetsDB(spreadsheet_name, "events")
         self.emails_db = GoogleSheetsDB(spreadsheet_name, "emails")
         self.conversations_db = GoogleSheetsDB(spreadsheet_name, "conversations")
+        self.trash_db = GoogleSheetsDB(spreadsheet_name, "trash")
+        self.file_associations_db = GoogleSheetsDB(spreadsheet_name, "file_associations")
+        self.action_log_db = GoogleSheetsDB(spreadsheet_name, "action_log")
 
 sheets_db_manager = GoogleSheetsDBManager()

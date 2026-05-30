@@ -178,8 +178,7 @@ class BrowserApp {
         if (!iframe) {
             iframe = document.createElement('iframe');
             iframe.id = `browser-frame-${this.activeTabId}`;
-            iframe.style.cssText = 'width:100%; height:100%; border:none;';
-            // iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts allow-popups allow-forms allow-modals');
+            iframe.style.cssText = 'width:100%; height:100%; border:none;'; 
             this.contentArea.appendChild(iframe);
         }
         iframe.src = url;

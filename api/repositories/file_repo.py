@@ -2,6 +2,7 @@ from api.core.google_sheets_db import sheets_db_manager
 from api.core.repository import BaseRepository, SimpleCache
 from typing import List, Dict, Optional
 import uuid, datetime
+from api.repositories.trash_repo import trash_repo
 
 from api.utils.mime_detector import get_mime_from_extension
 from ..routers.websocket import broadcast_file_change
@@ -55,12 +56,24 @@ class FileRepository(BaseRepository[Dict]):
         cache.invalidate(f"files:all:{user_id}") 
         return self.get_by_id(user_id, id)
 
+ 
     def delete(self, user_id: str, id: str) -> bool:
         f = self.get_by_id(user_id, id)
         if not f:
             return False
+        # Move to trash instead of permanent delete
+        trash_repo.create(user_id, {
+            "original_parent_id": f.get("parent_id", "root"),
+            "original_name": f["name"],
+            "original_type": f["type"],
+            "content": f.get("content", ""),
+            "extension": f.get("extension", ""),
+            "mime_type": f.get("mime_type", ""),
+            "size": f.get("size", "")
+        })
+        # Remove from files sheet
         sheets_db_manager.files_db.delete(id)
-        cache.invalidate(f"files:all:{user_id}") 
+        cache.invalidate(f"files:all:{user_id}")
         return True
 
 file_repo = FileRepository() 

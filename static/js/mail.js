@@ -105,8 +105,9 @@ class MailApp {
     }
 
     async deleteEmail(id) {
-        if (!confirm('Delete this email?')) return;
-        await api.delete(`/mail/${id}`);
+        if (await modal.confirm('Delete this email?', 'Confirm Delete')) {
+            await api.delete(`/mail/${id}`);
+        } 
         this.loadFolder(this.currentFolder);
     }
 
@@ -130,7 +131,10 @@ class MailApp {
             const recipient = document.getElementById('recipient-input').value.trim();
             const subject = document.getElementById('subject-input').value.trim();
             const body = document.getElementById('body-input').value.trim();
-            if (!recipient || !subject) return alert('Recipient and subject are required.');
+            if (!recipient || !subject) {
+                await modal.alert('Recipient and subject are required.', 'Missing Information');
+                return;
+            }
             try {
                 await api.post('/mail/send', { recipient, subject, body });
                 this.composeModal.style.display = 'none';

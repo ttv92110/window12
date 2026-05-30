@@ -354,7 +354,7 @@ function renderWindow(win) {
     const content = document.createElement('div');
     content.className = 'window-content';
     content.setAttribute('data-window-id', win.id);
-    content.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;">Loading...</div>';
+    // content.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;">Loading...</div>';
 
     // Resize handles
     ['nw', 'ne', 'sw', 'se', 'e', 's'].forEach(dir => {
@@ -707,6 +707,9 @@ async function loadAppContent(win, container) {
         case 'assistant':
             new AIAssistant(container, win);
             break;
+        case 'recycle':
+            new RecycleBinApp(container, win);
+            break;
 
         case 'explorer': loadFilesIntoExplorer(container); break;
         case 'browser': new BrowserApp(container, win); break;
@@ -737,38 +740,70 @@ async function loadFilesIntoExplorer(container) {
     }
 }
 
-function renderExplorerView(container, vfs, folderId) {
-    const state = explorerState.get(container.dataset.windowId);
+async function renderExplorerView(container, vfs, folderId) {
+    const state = Win12.explorerState.get(container.dataset.windowId);
     if (!state) return;
     state.currentFolderId = folderId;
-    explorerState.set(container.dataset.windowId, state);
+    Win12.explorerState.set(container.dataset.windowId, state);
 
-    const breadcrumbs = vfs.getBreadcrumbs(folderId);
     const items = vfs.getFolderContents(folderId);
+    const sortBy = state.sortBy || 'name';
+    const sortDir = state.sortDir || 'asc';
+    const sorted = sortFiles(items, sortBy, sortDir);
 
-    // Build breadcrumb HTML
-    const breadcrumbHTML = breadcrumbs.map((crumb, idx) => {
-        const isLast = idx === breadcrumbs.length - 1;
-        return `<span class="explorer-crumb" data-folder-id="${crumb.id}" style="cursor:pointer; ${isLast ? 'color:#f1f5f9; font-weight:500;' : ''}">${crumb.name}</span>${isLast ? '' : ' › '}`;
+    const breadHTML = vfs.getBreadcrumbs(folderId).map((c, i) => {
+        const isLast = i === breadcrumbs.length - 1;
+        return `<span class="explorer-crumb" data-folder-id="${c.id}" style="cursor:pointer;${isLast ? 'color:#f1f5f9;font-weight:500;' : ''}">${sanitize(c.name)}</span>${isLast ? '' : ' › '}`;
     }).join('');
 
-    // Build grid HTML
-    const gridHTML = items.length === 0
-        ? '<div style="text-align:center;color:#94a3b8;padding:20px;">This folder is empty</div>'
-        : items.map(item => `
-            <div class="explorer-file" data-id="${item.id}" data-type="${item.type}">
-                <div class="file-icon">${item.type === 'folder' ? '📁' : '📄'}</div>
-                <div class="file-name">${item.name}</div>
-            </div>
-        `).join('');
+    const viewMode = state.viewMode || 'icons'; // 'icons', 'list', 'details'
+    let gridHTML = '';
+    if (viewMode === 'icons') {
+        gridHTML = `<div class="explorer-icons">${sorted.map(item => `<div class="explorer-file" draggable="true" data-id="${item.id}" data-type="${item.type}"><div class="file-icon">${item.type === 'folder' ? '📁' : '📄'}</div><div class="file-name">${sanitize(item.name)}</div></div>`).join('')}</div>`;
+    } else if (viewMode === 'details') {
+        gridHTML = `<table class="explorer-table"><thead><tr><th data-sort="name">Name</th><th data-sort="type">Type</th><th data-sort="size">Size</th><th data-sort="updated">Date modified</th></tr></thead><tbody>${sorted.map(item => `<tr class="explorer-file" data-id="${item.id}" data-type="${item.type}"><td>${item.type === 'folder' ? '📁' : '📄'} ${sanitize(item.name)}</td><td>${item.type === 'folder' ? 'Folder' : (item.extension || 'File')}</td><td>${item.size || '-'}</td><td>${item.updated_at ? new Date(item.updated_at).toLocaleString() : '-'}</td></tr>`).join('')}</tbody></table>`;
+    }
 
     container.innerHTML = `
-        <div class="explorer-breadcrumb">${breadcrumbHTML}</div>
-        <div class="explorer-files">${gridHTML}</div>
+        <div class="explorer-toolbar">
+            <div class="explorer-breadcrumb">${breadHTML}</div>
+            <div class="explorer-address"><input type="text" class="address-bar" value="${getPathString(vfs, folderId)}" placeholder="Path"></div>
+            <div class="view-controls">
+                <button class="view-icons" title="Icons">🖼️</button>
+                <button class="view-details" title="Details">📋</button>
+                <button class="sort-name">Sort by Name</button>
+            </div>
+        </div>
+        <div class="explorer-files" data-folder-id="${folderId}">${gridHTML}</div>
     `;
 
-    // Attach events
     attachExplorerEvents(container, vfs, folderId);
+    attachDragAndDrop(container, vfs, folderId);
+    attachAddressBar(container, vfs);
+    attachSorting(container, vfs, folderId);
+    attachViewMode(container, vfs, folderId);
+}
+
+function attachDragAndDrop(container, vfs, folderId) {
+    const filesContainer = container.querySelector('.explorer-files');
+    // Make files draggable
+    container.querySelectorAll('.explorer-file').forEach(el => {
+        el.setAttribute('draggable', 'true');
+        el.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', JSON.stringify({ id: el.dataset.id, type: el.dataset.type }));
+            e.dataTransfer.effectAllowed = 'move';
+        });
+    });
+    // Make folder drop target
+    filesContainer.addEventListener('dragover', (e) => e.preventDefault());
+    filesContainer.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+        if (!data) return;
+        // Move dragged file to current folder
+        await api.put(`/files/${data.id}`, { parent_id: folderId });
+        refreshCurrentExplorer(container);
+    });
 }
 
 function attachExplorerEvents(container, vfs, folderId) {

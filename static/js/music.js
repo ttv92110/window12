@@ -162,15 +162,16 @@ class MusicApp {
     nextTrack() { /* placeholder */ }
 
     async createPlaylist() {
-        const name = prompt('Playlist name:');
+        const name = await modal.prompt('Playlist name:', '', 'New Playlist');
         if (!name) return;
         await api.post('/music/playlists', { name, file_ids: [] });
         await this.loadPlaylists();
     }
 
     async deletePlaylist(id) {
-        if (!confirm('Delete this playlist?')) return;
-        await api.delete(`/music/playlists/${id}`);
+        if (await modal.confirm('Delete this playlist?', 'Confirm Delete')) {
+            await api.delete(`/music/playlists/${id}`);
+        }
         await this.loadPlaylists();
     }
 

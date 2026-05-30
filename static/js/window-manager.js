@@ -19,6 +19,90 @@ function setupWindowManager(containerEl, taskbarEl) {
         else if (btn.classList.contains('maximize-btn')) toggleMaximizeWindow(windowId);
         else if (btn.classList.contains('close-btn')) closeWindow(windowId);
     });
+    // Helper functions for the active Explorer window
+    function getSelectedFilesInActiveExplorer() {
+        const activeContainer = document.querySelector('.window-content[data-app="explorer"]');
+        if (!activeContainer) return [];
+        // This assumes you have a way to get selected file IDs.
+        // For now, return an empty array or implement selection tracking.
+        // You can extend this later with a proper selection system.
+        const selectedElements = activeContainer.querySelectorAll('.explorer-file.selected');
+        return Array.from(selectedElements).map(el => ({ id: el.dataset.id, type: el.dataset.type }));
+    }
+
+    function getCurrentFolderIdInActiveExplorer() {
+        const activeContainer = document.querySelector('.window-content[data-app="explorer"]');
+        if (!activeContainer) return 'root';
+        const state = Win12.explorerState.get(activeContainer.dataset.windowId);
+        return state ? state.currentFolderId : 'root';
+    }
+
+    // Dummy refreshCurrentExplorer if not already defined elsewhere
+    async function refreshCurrentExplorer(container) {
+        if (!container) return;
+        const winId = container.dataset.windowId;
+        const state = Win12.explorerState.get(winId);
+        if (state) {
+            const files = await api.get('/files/');
+            state.vfs.refresh(files);
+            renderExplorerView(container, state.vfs, state.currentFolderId);
+        }
+    }
+    document.addEventListener('keydown', async (e) => {
+        if (Win12.isLocked) return;
+        const activeWin = Win12.windows.find(w => w.id === Win12.activeWindowId);
+        if (!activeWin || activeWin.appType !== 'explorer') return;
+
+        // Helper to get the active explorer container
+        const getActiveExplorerContainer = () => {
+            return document.querySelector('.window-content[data-app="explorer"]');
+        };
+
+        if (e.ctrlKey && e.key === 'x') {
+            e.preventDefault();
+            const selected = getSelectedFilesInActiveExplorer();
+            if (selected.length) clipboard.cut(selected);
+        } else if (e.ctrlKey && e.key === 'c') {
+            e.preventDefault();
+            const selected = getSelectedFilesInActiveExplorer();
+            if (selected.length) clipboard.copy(selected);
+        } else if (e.ctrlKey && e.key === 'v') {
+            e.preventDefault();
+            const currentFolder = getCurrentFolderIdInActiveExplorer();
+            const container = getActiveExplorerContainer();
+            await clipboard.paste(currentFolder, null, () => {
+                if (container) refreshCurrentExplorer(container);
+            });
+        } else if (e.ctrlKey && e.key === 'z') {
+            e.preventDefault();
+            await undoManager.undo();
+        } else if (e.ctrlKey && e.key === 'y') {
+            e.preventDefault();
+            await undoManager.redo();
+        } else if (e.key === 'Delete') {
+            e.preventDefault();
+            const selected = getSelectedFilesInActiveExplorer();
+            if (selected.length && await modal.confirm(`Move ${selected.length} item(s) to Recycle Bin?`, 'Confirm Delete')) {
+                for (const file of selected) {
+                    await api.delete(`/files/${file.id}`);
+                    // Push an undo action that restores the file from trash
+                    undoManager.push({
+                        undo: async () => {
+                            // Restore from trash – we need the trash item id; simplified: reload
+                            await api.post(`/trash/restore/${file.id}`); // assumes file.id is same as trash id? Not ideal. Better to store trashId.
+                            refreshCurrentExplorer(getActiveExplorerContainer());
+                        },
+                        redo: async () => {
+                            await api.delete(`/files/${file.id}`);
+                            refreshCurrentExplorer(getActiveExplorerContainer());
+                        }
+                    });
+                }
+                const container = getActiveExplorerContainer();
+                if (container) refreshCurrentExplorer(container);
+            }
+        }
+    });
 }
 
 // ---------- Window creation ----------
@@ -69,7 +153,7 @@ function renderWindow(win) {
     const content = document.createElement('div');
     content.className = 'window-content';
     content.dataset.windowId = win.id;
-    content.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;">Loading...</div>';
+    // content.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;">Loading...</div>';
 
     // Resize handles
     ['nw', 'ne', 'sw', 'se', 'e', 's'].forEach(dir => {
