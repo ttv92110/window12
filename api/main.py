@@ -5,8 +5,8 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 import os
 
-from api.routers import file_associations, trash
 
+# Import routers
 from .routers import auth, files, notes, settings, notifications, apps, websocket, search, store, music, calendar, mail, assistant
 
 # ========== ONE FastAPI app ==========
@@ -46,12 +46,11 @@ app.include_router(music.router)
 app.include_router(calendar.router)
 app.include_router(mail.router)
 app.include_router(assistant.router)
-app.include_router(trash.router)
-app.include_router(file_associations.router)
 
 # ========== Static files & Vercel data directories ==========
 BASE_DIR = Path(__file__).parent.parent.absolute()
 
+# For Vercel, copy data files to /tmp so they are writable/readable
 DATA_DIR = Path("/tmp/data") if os.getenv("VERCEL") else BASE_DIR / "data"
 DATA_DIR.mkdir(exist_ok=True, parents=True)
 if os.getenv("VERCEL"):
@@ -63,17 +62,20 @@ if os.getenv("VERCEL"):
             if not target.exists():
                 shutil.copy2(file, target)
 
-API_DATA_DIR = Path("/tmp/api/data") if os.getenv("VERCEL") else BASE_DIR / "api/data"
-API_DATA_DIR.mkdir(exist_ok=True, parents=True)
+os.environ["DATA_DIR"] = str(DATA_DIR)
+
+# # Also handle api/data (for app_manifest.json etc.)
+API_DATA_DIRX = Path("/tmp/api/data") if os.getenv("VERCEL") else BASE_DIR / "api/data"
+API_DATA_DIRX.mkdir(exist_ok=True, parents=True)
 if os.getenv("VERCEL"):
     source_api_data = BASE_DIR / "api/data"
     if source_api_data.exists():
         for file in source_api_data.glob("*.json"):
-            target = API_DATA_DIR / file.name
+            target = API_DATA_DIRX / file.name
             if not target.exists():
                 shutil.copy2(file, target)
 
-os.environ["DATA_DIR"] = str(DATA_DIR)
+os.environ["DATA_DIRX"] = str(DATA_DIR)
 
 # Mount static files
 static_dir = BASE_DIR / "static"

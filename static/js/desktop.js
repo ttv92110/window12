@@ -126,21 +126,15 @@ document.addEventListener('keydown', async (e) => {
 // --- WebSocket ---
 function connectWebSocket() {
     if (!authToken) return;
-    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${location.host}/ws/notifications?token=${encodeURIComponent(authToken)}`;
-    try {
-        const ws = new WebSocket(wsUrl);
-        ws.onmessage = (event) => {
-            try {
-                const message = JSON.parse(event.data);
-                handleWebSocketMessage(message);
-            } catch (e) { }
-        };
-        ws.onclose = () => setTimeout(() => { if (authToken) connectWebSocket(); }, 5000);
-    } catch (e) {
-        console.error('WebSocket connection failed:', e);
-        // Don't break the whole login – just log the error
-    }
+    const wsUrl = `ws://${location.host}/ws/notifications?token=${encodeURIComponent(authToken)}`;
+    const ws = new WebSocket(wsUrl);
+    ws.onmessage = (event) => {
+        try {
+            const message = JSON.parse(event.data);
+            handleWebSocketMessage(message);
+        } catch (e) { }
+    };
+    ws.onclose = () => setTimeout(() => { if (authToken) connectWebSocket(); }, 5000);
 }
 
 function handleWebSocketMessage(message) {
