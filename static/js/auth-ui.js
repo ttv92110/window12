@@ -53,7 +53,10 @@ async function loginHandler(e) {
     e.preventDefault();
     const username = document.getElementById('login-username').value.trim();
     const password = document.getElementById('login-password').value.trim();
-    if (!username || !password) return alert('Enter username and password');
+    if (!username || !password) {
+        await Win12.alert('Login Failed', 'Please enter both username and password');
+        return;
+    }
     const formData = new URLSearchParams();
     formData.append('username', username);
     formData.append('password', password);
@@ -67,7 +70,7 @@ async function loginHandler(e) {
         await loadUserProfile();
         loginSuccess();
     } catch (err) {
-        alert('Login failed: ' + err.message);
+        await Win12.error('Login Error', `Login failed: ${err.message}`);
     }
 }
 
@@ -77,10 +80,13 @@ async function signupHandler(e) {
     const username = document.getElementById('signup-username').value.trim();
     const fullName = document.getElementById('signup-fullname').value.trim();
     const password = document.getElementById('signup-password').value.trim();
-    if (!email || !username || !fullName || !password) return alert('All fields are required');
+    if (!email || !username || !fullName || !password) {
+        await Win12.alert('Signup Failed', 'All fields are required');
+        return;
+    }
     try {
         await api.post('/auth/signup', { username, password, full_name: fullName, email });
-        alert('Signup successful! You can now login.');
+        await Win12.alert('Signup Successful', 'Your account has been created. You can now login.');
         // Switch back to login form
         document.getElementById('signup-form').style.display = 'none';
         document.getElementById('login-form').style.display = 'flex';
@@ -91,7 +97,7 @@ async function signupHandler(e) {
         document.getElementById('signup-fullname').value = '';
         document.getElementById('signup-password').value = '';
     } catch (err) {
-        alert('Signup failed: ' + err.message);
+        await Win12.error('Signup Error', `Signup failed: ${err.message}`);
     }
 }
 

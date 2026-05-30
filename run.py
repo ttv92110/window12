@@ -4,7 +4,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "api.main:app", 
         host="127.0.0.1", 
-        port=8011, 
+        port=8018, 
         reload=True,
         reload_dirs=["api", "templates", "static"]
     )

@@ -82,12 +82,22 @@ function renderWindow(win) {
     winEl.appendChild(content);
     windowsContainer.appendChild(winEl);
 
+    // ==================== IMPROVED FOCUS ENGINE ====================
+    // Better Z-Index Management: Bring to front on ANY click inside window
+    winEl.addEventListener('mousedown', (e) => {
+        // Don't interfere with window controls or dragging
+        if (!e.target.closest('.window-controls') && !e.target.closest('.resize-handle')) {
+            bringToFront(win.id);
+        }
+    }, true); // Capture phase to catch before other handlers
+
     // ---------- Drag ----------
     let isDragging = false, dragOffsetX = 0, dragOffsetY = 0;
     titlebar.addEventListener('mousedown', (e) => {
         if (e.target.closest('.window-controls') || win.isMaximized) return;
         isDragging = true;
         winEl.style.willChange = 'transform';
+        winEl.style.cursor = 'grabbing';
         const rect = winEl.getBoundingClientRect();
         dragOffsetX = e.clientX - rect.left;
         dragOffsetY = e.clientY - rect.top;
@@ -148,7 +158,10 @@ function renderWindow(win) {
         isDragging = false;
         isResizing = false;
         if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-        if (win._el) win._el.style.willChange = 'auto';
+        if (win._el) {
+            win._el.style.willChange = 'auto';
+            win._el.style.cursor = 'auto';
+        }
     };
 
     document.addEventListener('mousemove', onMouseMove);
@@ -159,8 +172,6 @@ function renderWindow(win) {
         document.removeEventListener('mouseup', onMouseUp);
         if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
     };
-
-    winEl.addEventListener('mousedown', () => bringToFront(win.id));
 
     titlebar.addEventListener('dblclick', (e) => {
         if (!e.target.closest('.window-controls')) toggleMaximizeWindow(win.id);
@@ -331,7 +342,7 @@ function loadAppContent(win, container) {
         case 'browser': new BrowserApp(container, win); break;
         case 'settings': loadSettingsIntoWindow(container); break;
         case 'notepad': loadNotesIntoWindow(container); break;
-        case 'recycle': container.innerHTML = `<div style="text-align:center;padding:30px;">🗑️ Recycle Bin<br><small>No items</small></div>`; break;
+        case 'recycle': new RecycleBinApp(container, win); break;
         case 'calculator': loadCalculator(container, win); break;
         case 'terminal': new Terminal(container, win); break;
         case 'store': new StoreApp(container, win); break;

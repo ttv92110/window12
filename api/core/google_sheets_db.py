@@ -5,9 +5,10 @@ from pathlib import Path
 import json
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import traceback
+from collections import defaultdict
 
 class GoogleSheetsDB:
     def __init__(self, sheet_name: str, worksheet_name: str, connect_eagerly=False):
@@ -15,10 +16,15 @@ class GoogleSheetsDB:
         self.worksheet_name = worksheet_name
         self._client = None
         self._worksheet = None
+        
+        # ==================== ENHANCED CACHING ENGINE ====================
         self._cache = {}
-        self._cache_expiry = 5
+        self._cache_expiry = 10  # Cache for 10 seconds instead of 5
+        self._bulk_operations = []  # Queue for batching operations
+        self._last_full_refresh = None
+        
         if connect_eagerly:
-            self._ensure_connected()   # <-- yahi se startup logs aayenge
+            self._ensure_connected()
 
     def _ensure_connected(self):
         if self._worksheet is not None:
@@ -90,60 +96,117 @@ class GoogleSheetsDB:
         }
         return headers_map.get(self.worksheet_name)
 
-    # ---------- CRUD (pehle _ensure_connected) ----------
-    def read_all(self, force_refresh=False):
+    # ==================== ENHANCED CRUD OPERATIONS ====================
+    def read_all(self, force_refresh=False, exclude_deleted=False):
+        """Read all records with intelligent caching"""
         self._ensure_connected()
         if not self._worksheet:
             return []
+        
         cache_key = f"{self.sheet_name}:{self.worksheet_name}:all"
         now = time.time()
+        
+        # Return cached data if still valid
         if not force_refresh and cache_key in self._cache:
             data, timestamp = self._cache[cache_key]
             if now - timestamp < self._cache_expiry:
+                if exclude_deleted:
+                    return [r for r in data if r.get('parent_id') != 'recycle_bin']
                 return data
+        
         try:
             records = self._worksheet.get_all_records()
             data = [dict(record) for record in records]
+            
+            # Clean up old cache entries periodically
+            if len(self._cache) > 50:
+                oldest_key = min(self._cache.keys(), key=lambda k: self._cache[k][1])
+                del self._cache[oldest_key]
+            
             self._cache[cache_key] = (data, now)
+            
+            if exclude_deleted:
+                return [r for r in data if r.get('parent_id') != 'recycle_bin']
             return data
         except Exception as e:
-            print(f"Error reading: {e}")
+            print(f"❌ Error reading {self.worksheet_name}: {e}")
+            # Return cached data if available, even if expired
             if cache_key in self._cache:
-                return self._cache[cache_key][0]
+                data = self._cache[cache_key][0]
+                if exclude_deleted:
+                    return [r for r in data if r.get('parent_id') != 'recycle_bin']
+                return data
             return []
 
-    def find_by_id(self, id: str):
-        for rec in self.read_all():
+    def find_by_id(self, id: str, exclude_deleted=False):
+        """Find record by ID with optional soft-delete exclusion"""
+        for rec in self.read_all(exclude_deleted=exclude_deleted):
             if rec.get("id") == id:
                 return rec
         return None
 
-    def find_by_field(self, field: str, value: str):
-        return [r for r in self.read_all() if str(r.get(field)) == str(value)]
+    def find_by_field(self, field: str, value: str, exclude_deleted=False):
+        """Find records by field value"""
+        records = self.read_all(exclude_deleted=exclude_deleted)
+        return [r for r in records if str(r.get(field)) == str(value)]
+    
+    def find_by_parent(self, parent_id: str, exclude_deleted=False):
+        """Find all files with given parent_id - optimized for hierarchy traversal"""
+        records = self.read_all(exclude_deleted=exclude_deleted)
+        return [r for r in records if str(r.get('parent_id')) == str(parent_id)]
 
     def insert(self, record: Dict):
+        """Insert new record"""
         self._ensure_connected()
         if not self._worksheet:
             return record
+        
         if 'id' not in record:
             record['id'] = str(uuid.uuid4())
         if 'created_at' not in record:
             record['created_at'] = datetime.utcnow().isoformat()
+        
         headers = self._worksheet.row_values(1)
         if not headers:
             headers = list(record.keys())
             self._worksheet.append_row(headers)
+        
         row = [str(record.get(h, "")) for h in headers]
         self._worksheet.append_row(row)
-        self._cache.clear()
+        self._cache.clear()  # Invalidate cache
         return record
 
+    def insert_batch(self, records: List[Dict]):
+        """Batch insert multiple records (more efficient)"""
+        self._ensure_connected()
+        if not self._worksheet or not records:
+            return records
+        
+        for record in records:
+            if 'id' not in record:
+                record['id'] = str(uuid.uuid4())
+            if 'created_at' not in record:
+                record['created_at'] = datetime.utcnow().isoformat()
+        
+        headers = self._worksheet.row_values(1)
+        if not headers:
+            headers = list(records[0].keys())
+            self._worksheet.append_row(headers)
+        
+        rows = [[str(r.get(h, "")) for h in headers] for r in records]
+        self._worksheet.append_rows(rows)
+        self._cache.clear()
+        return records
+
     def update(self, id: str, updates: Dict):
+        """Update record by ID"""
         self._ensure_connected()
         if not self._worksheet:
             return None
+        
         headers = self._worksheet.row_values(1)
-        records = self.read_all()
+        records = self.read_all(force_refresh=True)
+        
         for idx, rec in enumerate(records, start=2):
             if rec.get("id") == id:
                 rec.update(updates)
@@ -154,17 +217,63 @@ class GoogleSheetsDB:
                 return rec
         return None
 
-    def delete(self, id: str):
+    def delete_hard(self, id: str):
+        """Permanently delete record (hard delete)"""
         self._ensure_connected()
         if not self._worksheet:
             return False
-        records = self.read_all()
+        
+        records = self.read_all(force_refresh=True)
         for idx, rec in enumerate(records, start=2):
             if rec.get("id") == id:
                 self._worksheet.delete_rows(idx)
                 self._cache.clear()
                 return True
         return False
+    
+    def delete_soft(self, id: str, original_parent_id: str = None):
+        """Soft delete: move to recycle bin instead of hard delete"""
+        # Soft deletion is implemented as parent_id = 'recycle_bin'
+        # This preserves data for recovery while hiding from normal views
+        return self.update(id, {
+            'parent_id': 'recycle_bin',
+            '_original_parent': original_parent_id or '',  # Store original location for restore
+        })
+    
+    def restore_from_recycle(self, id: str):
+        """Restore file from recycle bin"""
+        rec = self.find_by_id(id, exclude_deleted=False)
+        if not rec:
+            return None
+        
+        original_parent = rec.get('_original_parent', 'root')
+        return self.update(id, {
+            'parent_id': original_parent or 'root',
+            '_original_parent': '',
+        })
+    
+    def empty_recycle_bin(self, user_id: str = None):
+        """Permanently delete all items in recycle bin"""
+        records = self.read_all(force_refresh=True, exclude_deleted=False)
+        deleted_count = 0
+        
+        # Collect rows to delete (reverse order to maintain indices)
+        rows_to_delete = []
+        for idx, rec in enumerate(records, start=2):
+            if rec.get('parent_id') == 'recycle_bin':
+                if user_id is None or rec.get('user_id') == user_id:
+                    rows_to_delete.append(idx)
+        
+        # Delete in reverse order
+        for idx in sorted(rows_to_delete, reverse=True):
+            try:
+                self._worksheet.delete_rows(idx)
+                deleted_count += 1
+            except Exception as e:
+                print(f"Error deleting row {idx}: {e}")
+        
+        self._cache.clear()
+        return deleted_count
 
 
 class GoogleSheetsDBManager:
