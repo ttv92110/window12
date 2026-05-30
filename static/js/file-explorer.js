@@ -1,4 +1,4 @@
-// file-explorer.js – File Explorer window with drag-drop, clipboard, and recycle bin support
+// file-explorer.js – File Explorer window, virtual file system, file operations
 
 async function loadFilesIntoExplorer(container) {
     const winId = container.dataset.windowId;
@@ -11,7 +11,6 @@ async function loadFilesIntoExplorer(container) {
         renderExplorerView(container, vfs, state.currentFolderId);
     } catch (e) {
         container.innerHTML = '<div style="text-align:center;color:#94a3b8;">Error loading files</div>';
-        console.error('Error loading files:', e);
     }
 }
 
@@ -30,27 +29,22 @@ async function renderExplorerView(container, vfs, folderId) {
         const isLast = i === breadcrumbs.length - 1;
         return `<span class="explorer-crumb" data-folder-id="${c.id}" style="cursor:pointer;${isLast ? 'color:#f1f5f9;font-weight:500;' : ''}">${sanitize(c.name)}</span>${isLast ? '' : ' › '}`;
     }).join('');
-
-    const viewMode = state.viewMode || 'icons'; // 'icons', 'list', 'details'
-    let gridHTML = '';
-    if (viewMode === 'icons') {
-        gridHTML = `<div class="explorer-icons">${sorted.map(item => `<div class="explorer-file" draggable="true" data-id="${item.id}" data-type="${item.type}"><div class="file-icon">${item.type === 'folder' ? '📁' : '📄'}</div><div class="file-name">${sanitize(item.name)}</div></div>`).join('')}</div>`;
-    } else if (viewMode === 'details') {
-        gridHTML = `<table class="explorer-table"><thead><tr><th data-sort="name">Name</th><th data-sort="type">Type</th><th data-sort="size">Size</th><th data-sort="updated">Date modified</th></tr></thead><tbody>${sorted.map(item => `<tr class="explorer-file" data-id="${item.id}" data-type="${item.type}"><td>${item.type === 'folder' ? '📁' : '📄'} ${sanitize(item.name)}</td><td>${item.type === 'folder' ? 'Folder' : (item.extension || 'File')}</td><td>${item.size || '-'}</td><td>${item.updated_at ? new Date(item.updated_at).toLocaleString() : '-'}</td></tr>`).join('')}</tbody></table>`;
-    }
-
-    container.innerHTML = `
-        <div class="explorer-toolbar">
-            <div class="explorer-breadcrumb">${breadHTML}</div>
-            <div class="explorer-address"><input type="text" class="address-bar" value="${getPathString(vfs, folderId)}" placeholder="Path"></div>
-            <div class="view-controls">
-                <button class="view-icons" title="Icons">🖼️</button>
-                <button class="view-details" title="Details">📋</button>
-                <button class="sort-name">Sort by Name</button>
+    const gridHTML = items.length === 0
+        ? '<div style="text-align:center;color:#94a3b8;padding:20px;">This folder is empty</div>'
+        : items.map(item => `
+            <div class="explorer-file" data-id="${item.id}" data-type="${item.type}" draggable="true">
+                <div class="file-icon">${item.type === 'folder' ? '📁' : '📄'}</div>
+                <div class="file-name">${sanitize(item.name)}</div>
             </div>
-        </div>
-        <div class="explorer-files" data-folder-id="${folderId}">${gridHTML}</div>
-    `;
+        `).join('');
+
+    const filesGrid = document.createElement('div');
+    filesGrid.className = 'explorer-files-grid';
+    filesGrid.style.cssText = 'min-height: 300px;';
+
+    container.innerHTML = `<div class="explorer-breadcrumb">${breadHTML}</div>`;
+    container.appendChild(filesGrid);
+    filesGrid.innerHTML = gridHTML;
 
     attachExplorerEvents(container, vfs, folderId);
     attachDragAndDrop(container, vfs, folderId);
@@ -82,7 +76,6 @@ function attachDragAndDrop(container, vfs, folderId) {
 }
 
 function attachExplorerEvents(container, vfs, folderId) {
-    // Breadcrumb navigation
     container.querySelectorAll('.explorer-crumb').forEach(crumb => {
         crumb.addEventListener('click', () => {
             renderExplorerView(container, vfs, crumb.dataset.folderId);
@@ -124,43 +117,6 @@ function attachExplorerEvents(container, vfs, folderId) {
             }
         });
 
-        // Drag & Drop
-        let draggedItemId = null;
-        container.querySelectorAll('.explorer-file').forEach(el => {
-            el.setAttribute('draggable', 'true');
-            el.addEventListener('dragstart', (e) => {
-                draggedItemId = el.dataset.id;
-                e.dataTransfer.setData('text/plain', draggedItemId);
-                e.dataTransfer.effectAllowed = 'move';
-            });
-            el.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-            });
-            el.addEventListener('drop', async (e) => {
-                e.preventDefault();
-                const targetId = el.dataset.id;
-                const targetType = el.dataset.type;
-                if (targetType === 'folder' && draggedItemId && draggedItemId !== targetId) {
-                    // Move dragged file/folder into target folder
-                    await api.put(`/files/${draggedItemId}`, { parent_id: targetId });
-                    refreshCurrentExplorer(container);
-                }
-                draggedItemId = null;
-            });
-        });
-
-        // Make entire container a drop target for desktop area
-        const filesContainer = container.querySelector('.explorer-files');
-        filesContainer.addEventListener('dragover', (e) => e.preventDefault());
-        filesContainer.addEventListener('drop', async (e) => {
-            e.preventDefault();
-            const sourceId = e.dataTransfer.getData('text/plain');
-            if (sourceId && folderId !== 'root') {
-                await api.put(`/files/${sourceId}`, { parent_id: folderId });
-                refreshCurrentExplorer(container);
-            }
-        });
         // Drop - move file
         filesGrid.addEventListener('drop', async (e) => {
             e.preventDefault();
@@ -209,21 +165,19 @@ function attachExplorerEvents(container, vfs, folderId) {
 
     // File interactions
     container.querySelectorAll('.explorer-file').forEach(el => {
-        // Double-click to open
         el.addEventListener('dblclick', () => {
             const id = el.dataset.id;
             const type = el.dataset.type;
             if (type === 'folder') {
                 renderExplorerView(container, vfs, id);
             } else {
+                // Use global opener
                 openFileById(id);
             }
         });
-
-        // Right-click context menu
         el.addEventListener('contextmenu', (e) => {
             e.preventDefault();
-            showFileContextMenu(e.clientX, e.clientY, el.dataset.id, el.dataset.type, container, vfs);
+            showFileContextMenu(e.clientX, e.clientY, el.dataset.id, el.dataset.type, container);
         });
     });
 }
@@ -246,149 +200,61 @@ async function openFileInNotepad(fileId) {
         }, 100);
     } catch (e) {
         console.error('Error opening file', e);
-        await Win12.error('Open Error', `Failed to open file: ${e.message}`);
     }
 }
 
-async function showFileContextMenu(x, y, fileId, fileType, container, vfs) {
+function showFileContextMenu(x, y, fileId, fileType, container) {
     const existing = document.getElementById('file-context-menu');
     if (existing) existing.remove();
-
     const menu = document.createElement('div');
     menu.id = 'file-context-menu';
-    menu.style.cssText = `
-        position: fixed;
-        left: ${x}px;
-        top: ${y}px;
-        background: rgba(30, 30, 50, 0.95);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 8px;
-        padding: 4px 0;
-        min-width: 180px;
-        z-index: 8001;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-    `;
-
-    const addItem = (text, action, icon = '') => {
+    menu.style.cssText = `position:fixed; left:${x}px; top:${y}px; background:rgba(30,30,50,0.95); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.2); border-radius:8px; padding:4px 0; min-width:150px; z-index:8001;`;
+    const addItem = (text, action) => {
         const item = document.createElement('div');
         item.className = 'context-item';
-        item.innerHTML = `${icon} ${text}`;
-        item.style.cssText = `
-            padding: 10px 16px;
-            cursor: pointer;
-            color: #cbd5e1;
-            font-size: 13px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.15s ease;
-        `;
-        item.addEventListener('mouseenter', () => {
-            item.style.background = 'rgba(139, 92, 246, 0.2)';
-            item.style.color = '#f1f5f9';
-        });
-        item.addEventListener('mouseleave', () => {
-            item.style.background = 'transparent';
-            item.style.color = '#cbd5e1';
-        });
-        item.addEventListener('click', async () => {
-            try {
-                await action();
-            } catch (err) {
-                console.error('Context menu action error:', err);
-            }
-            menu.remove();
-        });
+        item.textContent = text;
+        item.style.cssText = 'padding:8px 16px; cursor:pointer; color:#cbd5e1; font-size:13px;';
+        item.addEventListener('mouseenter', () => item.style.background = 'rgba(255,255,255,0.1)');
+        item.addEventListener('mouseleave', () => item.style.background = 'transparent');
+        item.addEventListener('click', action);
         menu.appendChild(item);
     };
-
-    // Get file info for "Open With" submenu
-    const file = vfs.getFileById(fileId);
-    const appInfo = Win12.getAppForFile(file);
-
-    // Open With
-    if (fileType === 'file' && appInfo) {
-        addItem(`Open with ${appInfo.app}`, async () => {
-            if (appInfo.handler && typeof window[appInfo.handler] === 'function') {
-                window[appInfo.handler](fileId);
-            }
-        }, '🚀');
-    }
-
-    // Copy
-    addItem('Copy', async () => {
-        Win12.copyToClipboard([file]);
-    }, '📋');
-
-    // Cut
-    addItem('Cut', async () => {
-        Win12.cutToClipboard([file]);
-    }, '✂️');
-
-    // Paste
-    if (Win12.clipboard.files.length > 0 && fileType === 'folder') {
-        addItem('Paste', async () => {
-            await pasteFilesIntoFolder(fileId, container);
-        }, '📌');
-    }
-
-    // Rename
     addItem('Rename', async () => {
-        const newName = await promptModal('Rename File', `Enter new name for "${file.name}":`, file.name);
-        if (newName && newName !== file.name) {
+        const newName = prompt('Enter new name:');
+        if (newName) {
             await api.put(`/files/${fileId}`, { name: newName });
-            Win12.addHistory('rename', [file], { oldName: file.name, newName });
-            refreshCurrentExplorer(container);
-        }
-    }, '✏️');
-
-    // Delete
-    addItem('Delete', async () => {
-        const result = await modal.show({
-            title: 'Delete',
-            message: `Move "${fileName}" to Recycle Bin?`,
-            buttons: [
-                { text: 'Yes', value: 'yes', primary: true },
-                { text: 'No', value: 'no' }
-            ]
-        });
-        if (result.button === 'yes') {
-            await api.delete(`/files/${fileId}`);   // backend will move to trash
             refreshCurrentExplorer(container);
         }
         menu.remove();
+    });
+    addItem('Delete', async () => {
+        const result = await Win12.confirm('Delete Item?', `Are you sure you want to delete "${file.name}"? This will move it to Recycle Bin.`);
+        if (result === 'yes') {
+            await api.put(`/files/${fileId}`, { parent_id: 'recycle_bin' });
+            Win12.addHistory('delete', [file], { originalParentId: file.parent_id });
+            refreshCurrentExplorer(container);
+        }
     }, '🗑️');
-    // addItem('Delete', async () => {
-    //     const result = await Win12.confirm('Delete Item?', `Are you sure you want to delete "${file.name}"? This will move it to Recycle Bin.`);
-    //     if (result === 'yes') {
-    //         await api.put(`/files/${fileId}`, { parent_id: 'recycle_bin' });
-    //         Win12.addHistory('delete', [file], { originalParentId: file.parent_id });
-    //         refreshCurrentExplorer(container);
-    //     }
-    // }, '🗑️');
 
     // New Folder (if current is a folder)
     if (fileType === 'folder') {
-        addItem('New Folder', async () => {
-            const name = await promptModal('New Folder', 'Enter folder name:', 'New Folder');
+        addItem('New Folder here', async () => {
+            const name = prompt('Folder name:');
             if (name) {
                 await api.post('/files/', { name, type: 'folder', parent_id: fileId });
-                Win12.addHistory('create', [{ name, type: 'folder', parent_id: fileId }]);
                 refreshCurrentExplorer(container);
             }
-        }, '📁');
-
-        addItem('New File', async () => {
-            const name = await promptModal('New File', 'Enter file name:', 'untitled.txt');
+            menu.remove();
+        });
+        addItem('New File here', async () => {
+            const name = prompt('File name:');
             if (name) {
                 await api.post('/files/', { name, type: 'file', parent_id: fileId, content: '' });
-                Win12.addHistory('create', [{ name, type: 'file', parent_id: fileId }]);
                 refreshCurrentExplorer(container);
             }
-        }, '📄');
+            menu.remove();
+        });
     }
-
     document.body.appendChild(menu);
     document.addEventListener('click', function closeMenu(e) {
         if (!menu.contains(e.target)) {
@@ -396,125 +262,6 @@ async function showFileContextMenu(x, y, fileId, fileType, container, vfs) {
             document.removeEventListener('click', closeMenu);
         }
     });
-}
-
-// Helper function: Modal-based prompt
-async function promptModal(title, message, defaultValue = '') {
-    return new Promise((resolve) => {
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay';
-        overlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-            backdrop-filter: blur(4px);
-        `;
-
-        const modal = document.createElement('div');
-        modal.style.cssText = `
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(148, 163, 184, 0.2);
-            border-radius: 12px;
-            padding: 24px;
-            max-width: 380px;
-            min-width: 300px;
-        `;
-
-        modal.innerHTML = `
-            <h3 style="color: #f1f5f9; margin: 0 0 12px 0; font-size: 16px;">${sanitize(title)}</h3>
-            <p style="color: #cbd5e1; font-size: 13px; margin: 0 0 16px 0;">${sanitize(message)}</p>
-            <input type="text" id="modal-input" value="${sanitize(defaultValue)}" style="
-                width: 100%;
-                padding: 8px 12px;
-                background: rgba(0, 0, 0, 0.3);
-                border: 1px solid rgba(148, 163, 184, 0.2);
-                border-radius: 6px;
-                color: #f1f5f9;
-                box-sizing: border-box;
-                margin-bottom: 16px;
-            ">
-            <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                <button id="modal-cancel" style="
-                    padding: 8px 16px;
-                    background: rgba(148, 163, 184, 0.1);
-                    border: 1px solid rgba(148, 163, 184, 0.2);
-                    border-radius: 6px;
-                    color: #cbd5e1;
-                    cursor: pointer;
-                ">Cancel</button>
-                <button id="modal-ok" style="
-                    padding: 8px 16px;
-                    background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
-                    border: none;
-                    border-radius: 6px;
-                    color: white;
-                    cursor: pointer;
-                ">OK</button>
-            </div>
-        `;
-
-        overlay.appendChild(modal);
-        document.body.appendChild(overlay);
-
-        const input = modal.querySelector('#modal-input');
-        input.focus();
-        input.select();
-
-        const okBtn = modal.querySelector('#modal-ok');
-        const cancelBtn = modal.querySelector('#modal-cancel');
-
-        const handleOk = () => {
-            overlay.remove();
-            resolve(input.value);
-        };
-
-        okBtn.addEventListener('click', handleOk);
-        cancelBtn.addEventListener('click', () => {
-            overlay.remove();
-            resolve(null);
-        });
-
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') handleOk();
-        });
-    });
-}
-
-async function pasteFilesIntoFolder(targetFolderId, container) {
-    if (!Win12.clipboard.files || Win12.clipboard.files.length === 0) {
-        await Win12.alert('Paste Failed', 'Clipboard is empty');
-        return;
-    }
-
-    try {
-        const action = Win12.clipboard.action;
-
-        for (const file of Win12.clipboard.files) {
-            if (action === 'copy') {
-                // Copy: create a duplicate
-                const copied = await api.post(`/files/${file.id}/copy`);
-                await api.put(`/files/${copied.id}`, { parent_id: targetFolderId });
-            } else if (action === 'cut') {
-                // Cut: move the file
-                await api.put(`/files/${file.id}`, { parent_id: targetFolderId });
-            }
-        }
-
-        Win12.addHistory('paste', Win12.clipboard.files, { action, targetParentId: targetFolderId });
-        Win12.clearClipboard();
-        await refreshCurrentExplorer(container);
-    } catch (err) {
-        console.error('Paste error:', err);
-        await Win12.error('Paste Failed', `Could not paste files: ${err.message}`);
-    }
 }
 
 async function refreshCurrentExplorer(container) {

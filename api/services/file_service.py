@@ -2,7 +2,6 @@ from api.repositories.file_repo import file_repo
 from api.routers.websocket import broadcast_file_change
 from api.utils.mime_detector import get_mime_from_extension
 from typing import List, Dict, Optional
-from api.core.google_sheets_db import sheets_db_manager
 
 class FileService:
     async def get_all_files(self, user_id: str) -> List[Dict]:
@@ -21,25 +20,11 @@ class FileService:
 
     async def update_file(self, user_id: str, file_id: str, updates: Dict) -> Optional[Dict]:
         updated = file_repo.update(user_id, file_id, updates)
-        
-        file_record = self.get_file(user_id, file_id)
-        if not file_record:
-            return None
-        
-        # Store original parent before soft delete
-        if updates.get('parent_id') == 'recycle_bin' and '_original_parent' not in updates:
-            updates['_original_parent'] = file_record.get('parent_id', 'root')
         if updated:
             updated_full = file_repo.get_by_id(user_id, file_id)
             if updated_full:
                 await broadcast_file_change(user_id, "updated", updated_full)
-        
-        # Store original parent before soft delete
-        if updates.get('parent_id') == 'recycle_bin' and '_original_parent' not in updates:
-            updates['_original_parent'] = file_record.get('parent_id', 'root')
-        
-        return updated, sheets_db_manager.files_db.update(file_id, updates)
-     
+        return updated
 
     async def delete_file(self, user_id: str, file_id: str) -> bool:
         success = file_repo.delete(user_id, file_id)
@@ -81,19 +66,6 @@ class FileService:
                 print(f"Error deleting {item['id']}: {e}")
         
         return deleted_count
-    
-    async def move_files(self, user_id: str, file_ids: List[str], target_parent_id: str):
-        for fid in file_ids:
-            self.file_repo.update(user_id, fid, {"parent_id": target_parent_id})
-        await broadcast_file_change(user_id, "moved", {"ids": file_ids, "target": target_parent_id})
-
-    async def copy_files(self, user_id: str, file_ids: List[str], target_parent_id: str):
-        new_ids = []
-        for fid in file_ids:
-            original = self.file_repo.get_by_id(user_id, fid)
-            new = self.file_repo.create(user_id, {**original, "id": None, "name": original["name"] + " - Copy", "parent_id": target_parent_id})
-            new_ids.append(new["id"])
-        return new_ids
      
 
 
